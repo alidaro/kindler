@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Book Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>kindler.ai</h1>
+            <p></p>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#contact">Contact</a></li>
+                <li><a href="#" id="pricing-link">Pricing</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section class="hero">
+            <h2>Generate a book in seconds with AI.</h2>
+            <p>Sell it on book stores like Amazon and make money!</p>
+        </section>
+        <section class="book-creator">
+            <form id="book-form">
+                <input type="text" id="book-title" placeholder="Enter your book title" required>
+                <button type="submit" id="generate-btn" class="cta-button">Create the book</button>
+            </form>
+            <div id="loading" style="display: none;">
+                <p>Generating your book... Please wait.</p>
+                <!-- You can add a loading spinner here if you want -->
+            </div>
+            <div id="download" style="display: none;">
+                <a href="#" id="download-link" class="cta-button">Download your book</a>
+            </div>
+        </section>
+
+        <section class="process">
+            <div class="step">
+                <img src="static/book.png" alt="Book Cover">
+                <p>Select title</p>
+            </div>
+            <div class="arrow">➔</div>
+            <div class="step">
+                <img src="static/chapters.png" alt="Checklist">
+                <p>Wait for some time while AI is writing your book</p>
+            </div>
+            <div class="arrow">➔</div>
+            <div class="step">
+                <img src="static/button.png" alt="Download">
+                <p>Download your book after it's ready</p>
+            </div>
+        </section>
+
+        <section class="market-info">
+            <div class="stat">
+                <img src="static/ebook-icon.png" alt="E-book Icon">
+                <h3>$17.01bn</h3>
+                <p>Worldwide e-book business market</p>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature">
+                <img src="static/bookstore-logos.png" alt="Bookstore Logos">
+                <p>Ready to be sold in the top bookstores</p>
+            </div>
+            <div class="feature">
+                <img src="static/ai-icon.png" alt="AI Icon">
+                <p>Powered by GPT world's #1 AI</p>
+            </div>
+            <div class="feature">
+                <img src="static/file-formats.png" alt="File Formats">
+                <p>Download in PDF and DOCX format</p>
+            </div>
+        </section>
+
+        <section class="faq">
+            <h2>Frequently Asked Questions</h2>
+            <div class="question">
+                <h3>How many pages on average does a generated book have?</h3>
+                <p>You can expect about one or two pages per generated chapter. Our generator is capable of composing a book with up to 10 chapters, resulting in an average length of 60 to 70 pages.</p>
+            </div>
+            <div class="question">
+                <h3>Who owns the rights to my book?</h3>
+                <p>You have complete ownership of your book and are free to sell it or use it in any way you desire. Our tool solely generates the content of the book, ensuring that the intellectual property rights are yours. However, it is important to note that copyright-related matters regarding AI generated content remain a subject of discussion. <a href="#">See here</a> for more.</p>
+            </div>
+            <div class="question">
+                <h3>How long does it take to generate a book?</h3>
+                <p>The book generation process is generally swift, typically taking just a few minutes based on the book's length. However, in the event of server slowdowns, occasional interruptions in the book queue may occur. Rest assured that if such an interruption does happen, the book will be automatically completed once the server is back to normal.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 AI Book Generator. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const bookForm = document.getElementById('book-form');
+            const bookTitleInput = document.getElementById('book-title');
+            const generateBtn = document.getElementById('generate-btn');
+            const loadingDiv = document.getElementById('loading');
+            const downloadDiv = document.getElementById('download');
+            const downloadLink = document.getElementById('download-link');
+
+            bookForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                const bookTitle = bookTitleInput.value.trim();
+                if (bookTitle === '') {
+                    alert('Please enter a book title');
+                    return;
+                }
+
+                // Hide download link if visible
+                downloadDiv.style.display = 'none';
+
+                // Show loading spinner
+                loadingDiv.style.display = 'block';
+                generateBtn.disabled = true;
+
+                // Send request to backend
+                fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `book_title=${encodeURIComponent(bookTitle)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Hide loading spinner
+                    loadingDiv.style.display = 'none';
+                    downloadLink.href = `/download/${data.filename}`;
+                    downloadDiv.style.display = 'block';
+                    generateBtn.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    // Hide loading spinner
+                    loadingDiv.style.display = 'none';
+                    alert('An error occurred while generating the book');
+                    generateBtn.disabled = false;
+                });
+            });
+
+            // Redirect to YouTube when Pricing link is clicked
+            const pricingLink = document.getElementById('pricing-link');
+            pricingLink.addEventListener('click', function(event) {
+                event.preventDefault();
+                window.location.href = '';
+            });
+        });
+    </script>
+</body>
+</html>
