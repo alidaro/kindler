@@ -6,11 +6,11 @@
         "use": "@vercel/python"
       },
       {
-        "src": "static/**",
+        "src": "static/*",
         "use": "@vercel/static"
       },
       {
-        "src": "templates/**",
+        "src": "templates/*",
         "use": "@vercel/static"
       }
     ],
