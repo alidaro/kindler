@@ -3,31 +3,32 @@ import json
 import openai
 import os
 from dotenv import load_dotenv
-from io import BytesIO
 from fpdf import FPDF
 import asyncio
 
-# Загружаем переменные окружения из .env файла
+# Load environment variables from .env file
 load_dotenv()
 
-# Импортируем API-ключ из переменных окружения
+# Import API key from environment variables
 openai.api_key = os.getenv('OPENAI_KEY')
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 
 def save(filename, text):
-    with open(filename, 'w+', encoding='utf-8') as f:
+    books_directory = os.path.join(app.static_folder, 'books')
+    full_path = os.path.join(books_directory, filename)
+    with open(full_path, 'w', encoding='utf-8') as f:
         f.write(text)
 
 async def generate_chapters(book_title):
     prompt = [
         {
             "role": "system",
-            "content": f"generate a list of chapters and subchapters for a book titled {book_title} in json format. do not include any explanation or code formatting. format it in this way: "+"{\"chapter_name\":[\"subchapter_names\"],}"+". please include between 5 and 10 subchapters per chapter. use this format exactly."
+            "content": f"Generate a list of chapters and subchapters for a book titled {book_title} in JSON format. Do not include any explanation or code formatting. Format it in this way: "+"{\"chapter_name\":[\"subchapter_names\"],}"+". Please include between 5 and 10 subchapters per chapter. Use this format exactly."
         },
         {
             "role": "user",
-            "content": "generate with 4 space indents"
+            "content": "Generate with 4 space indents"
         },
     ]
     try:
@@ -45,11 +46,11 @@ async def generate_content(chaptername, subchapter, book_title):
     prompt = [
         {
             "role": "system",
-            "content": f"generate the content for a subchapter in a book. the chapter title is {chaptername}. the title of the subchapter is {subchapter}. the title of the book is {book_title}. please only include the requested data."
+            "content": f"Generate the content for a subchapter in a book. The chapter title is {chaptername}. The title of the subchapter is {subchapter}. The title of the book is {book_title}. Please only include the requested data."
         },
         {
             "role": "user",
-            "content": "do not include the chapter title, the subchapter title, or the book title in the data, only the chapter content."
+            "content": "Do not include the chapter title, the subchapter title, or the book title in the data, only the chapter content."
         },
     ]
     try:
@@ -65,24 +66,12 @@ async def generate_content(chaptername, subchapter, book_title):
 
 async def generate_chapter_content(chapter_name, subchapters, book_title):
     sections = []
-    tasks = []
-    for subchapter_name in subchapters:
-        tasks.append(asyncio.create_task(generate_content(chapter_name, subchapter_name, book_title)))
-    
+    tasks = [generate_content(chapter_name, subchapter, book_title) for subchapter in subchapters]
     results = await asyncio.gather(*tasks)
     for i, content in enumerate(results):
         if content:
-            section = {
-                "subchapter": subchapters[i],
-                "content": content,
-            }
-            sections.append(section)
-    
-    chapter = {
-        "chapter_title": chapter_name,
-        "subchapters": sections
-    }
-    return chapter
+            sections.append({"subchapter": subchapters[i], "content": content})
+    return {"chapter_title": chapter_name, "subchapters": sections}
 
 class PDF(FPDF):
     def __init__(self, book_title, *args, **kwargs):
@@ -145,7 +134,8 @@ def gen_pdf(title, chapters):
     pdf.add_table_of_contents()
     
     pdf_filename = f"{title.replace(' ', '_').replace(':', '-').replace('?', '')}.pdf"
-    pdf.output(f'static/books/{pdf_filename}', 'F')
+    pdf_output_path = os.path.join(app.static_folder, 'books', pdf_filename)
+    pdf.output(pdf_output_path, 'F')
     return pdf_filename
 
 @app.route('/')
@@ -160,7 +150,7 @@ async def generate():
     if not chapters_names:
         return jsonify({"error": "Failed to generate chapters"}), 500
 
-    save('static/books/chapters.json', chapters_names)
+    save('chapters.json', chapters_names)
 
     try:
         chapters_json = json.loads(chapters_names)
@@ -168,17 +158,11 @@ async def generate():
         print(f"JSON decode error: {e}")
         return jsonify({"error": "Failed to decode JSON"}), 500
 
-    tasks = []
-    for chapter_name, subchapters in chapters_json.items():
-        tasks.append(asyncio.create_task(generate_chapter_content(chapter_name, subchapters, book_title)))
-
+    tasks = [generate_chapter_content(chapter_name, subchapters, book_title) for chapter_name, subchapters in chapters_json.items()]
     chapters = await asyncio.gather(*tasks)
 
-    book_out = os.path.join('static/books', book_title.replace(' ', '_').replace(':', '-').replace('?', '') + '.json')
-    save(book_out, json.dumps(chapters, indent=4, ensure_ascii=False))
-
     pdf_filename = gen_pdf(book_title, chapters)
-    pdf_out = os.path.join('static/books', pdf_filename)
+    pdf_out = os.path.join(app.static_folder, 'books', pdf_filename)
     
     if not os.path.exists(pdf_out):
         return jsonify({"error": "PDF file not found"}), 500
@@ -187,7 +171,7 @@ async def generate():
 
 @app.route('/download/<filename>')
 def download(filename):
-    filepath = os.path.join('static/books', filename)
+    filepath = os.path.join(app.static_folder, 'books', filename)
     if not os.path.exists(filepath):
         return jsonify({"error": "File not found"}), 404
     return send_file(filepath, as_attachment=True)

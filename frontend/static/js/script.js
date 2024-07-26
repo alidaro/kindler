@@ -46,6 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Redirect to YouTube when Pricing link is clicked
     pricingLink.addEventListener('click', function(event) {
         event.preventDefault();
-        window.location.href = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+        window.location.href = '';
     });
 });
