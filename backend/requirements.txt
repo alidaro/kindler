@@ -1,5 +1,5 @@
-Flask==2.3.4
-openai==0.27.0
+Flask==2.4.0
+openai==0.27.3
 python-dotenv==1.0.0
-fpdf==1.7.2
-gunicorn==20.1.0
+fpdf==2.5.5
+gunicorn==21.2.0
