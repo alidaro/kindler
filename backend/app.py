@@ -16,6 +16,7 @@ app = Flask(__name__, template_folder='../frontend/templates', static_folder='..
 
 def save(filename, text):
     books_directory = os.path.join(app.static_folder, 'books')
+    os.makedirs(books_directory, exist_ok=True)
     full_path = os.path.join(books_directory, filename)
     with open(full_path, 'w', encoding='utf-8') as f:
         f.write(text)
@@ -24,7 +25,7 @@ async def generate_chapters(book_title):
     prompt = [
         {
             "role": "system",
-            "content": f"Generate a list of chapters and subchapters for a book titled {book_title} in JSON format. Do not include any explanation or code formatting. Format it in this way: "+"{\"chapter_name\":[\"subchapter_names\"],}"+". Please include between 5 and 10 subchapters per chapter. Use this format exactly."
+            "content": f"Generate a list of chapters and subchapters for a book titled '{book_title}' in JSON format. Do not include any explanation or code formatting. Format it in this way: "+"{\"chapter_name\":[\"subchapter_names\"],}"+". Please include between 5 and 10 subchapters per chapter."
         },
         {
             "role": "user",
@@ -36,17 +37,16 @@ async def generate_chapters(book_title):
             model="gpt-4o-mini",
             messages=prompt
         )
-        gpt_response = response['choices'][0]['message']['content']
-        return gpt_response
+        return response['choices'][0]['message']['content']
     except Exception as e:
         print(f"Error generating chapters: {e}")
         return None
 
-async def generate_content(chaptername, subchapter, book_title):
+async def generate_content(chapter_name, subchapter, book_title):
     prompt = [
         {
             "role": "system",
-            "content": f"Generate the content for a subchapter in a book. The chapter title is {chaptername}. The title of the subchapter is {subchapter}. The title of the book is {book_title}. Please only include the requested data."
+            "content": f"Generate the content for a subchapter in a book. The chapter title is '{chapter_name}'. The title of the subchapter is '{subchapter}'. The title of the book is '{book_title}'. Please only include the requested data."
         },
         {
             "role": "user",
@@ -58,19 +58,15 @@ async def generate_content(chaptername, subchapter, book_title):
             model="gpt-4o-mini",
             messages=prompt
         )
-        gpt_response = response['choices'][0]['message']['content']
-        return gpt_response
+        return response['choices'][0]['message']['content']
     except Exception as e:
-        print(f"Error generating content for {subchapter}: {e}")
+        print(f"Error generating content for subchapter '{subchapter}': {e}")
         return None
 
 async def generate_chapter_content(chapter_name, subchapters, book_title):
-    sections = []
     tasks = [generate_content(chapter_name, subchapter, book_title) for subchapter in subchapters]
     results = await asyncio.gather(*tasks)
-    for i, content in enumerate(results):
-        if content:
-            sections.append({"subchapter": subchapters[i], "content": content})
+    sections = [{"subchapter": subchapters[i], "content": content} for i, content in enumerate(results) if content]
     return {"chapter_title": chapter_name, "subchapters": sections}
 
 class PDF(FPDF):
@@ -81,19 +77,19 @@ class PDF(FPDF):
 
     def header(self):
         self.set_font('Times', 'B', 12)
-        self.cell(0, 10, self.book_title.encode('latin1', 'replace').decode('latin1'), 0, 1, 'C')
+        self.cell(0, 10, self.book_title, 0, 1, 'C')
         self.ln(10)
 
     def chapter_title(self, chapter_title):
         self.set_font('Times', 'B', 14)
-        self.cell(0, 10, chapter_title.encode('latin1', 'replace').decode('latin1'), 0, 1, 'L')
+        self.cell(0, 10, chapter_title, 0, 1, 'L')
         self.ln(5)
         self.chapters_list.append((chapter_title, self.page_no()))
 
     def chapter_body(self, body):
         self.set_font('Times', '', 12)
         body_text = "\n".join(body)
-        self.multi_cell(0, 10, body_text.encode('latin1', 'replace').decode('latin1'))
+        self.multi_cell(0, 10, body_text)
         self.ln()
 
     def footer(self):
@@ -104,7 +100,7 @@ class PDF(FPDF):
     def add_title_page(self):
         self.add_page()
         self.set_font('Times', 'B', 24)
-        self.cell(0, 100, self.book_title.encode('latin1', 'replace').decode('latin1'), 0, 1, 'C')
+        self.cell(0, 100, self.book_title, 0, 1, 'C')
         self.ln(10)
         self.set_font('Times', '', 16)
         self.cell(0, 10, 'Alidar Panaguzhiyev', 0, 1, 'C')
@@ -122,7 +118,6 @@ class PDF(FPDF):
 
 def gen_pdf(title, chapters):
     pdf = PDF(book_title=title)
-    
     pdf.add_title_page()
     
     for chapter in chapters:
@@ -130,7 +125,7 @@ def gen_pdf(title, chapters):
         pdf.chapter_title(chapter['chapter_title'])
         combined_subchapters = [subchapter['content'] for subchapter in chapter['subchapters']]
         pdf.chapter_body(combined_subchapters)
-
+    
     pdf.add_table_of_contents()
     
     pdf_filename = f"{title.replace(' ', '_').replace(':', '-').replace('?', '')}.pdf"
@@ -177,4 +172,4 @@ def download(filename):
     return send_file(filepath, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
