@@ -172,4 +172,5 @@ def download(filename):
     return send_file(filepath, as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=int(os.getenv('PORT', 5000)), log_level="debug")
