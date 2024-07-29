@@ -9,3 +9,4 @@ openai
 python-dotenv
 fpdf
 asyncio
+uvicorn==0.22.0
